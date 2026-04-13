@@ -1,0 +1,8 @@
+__pycache__/
+*.py[cod]
+venv/
+*.csv
+*.pkl
+*.h5
+.vscode/
+.ipynb_checkpoints/

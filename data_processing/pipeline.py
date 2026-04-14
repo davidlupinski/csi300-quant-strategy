@@ -185,7 +185,14 @@ def time_based_split(panel: pd.DataFrame, split_date: str = '2023-07-01'):
 
     return X_train, X_test, y_train, y_test, train, test
 
-
+def save_pipeline_outputs(train: pd.DataFrame, test: pd.DataFrame,
+                           output_dir: str = 'data'):
+    os.makedirs(output_dir, exist_ok=True)
+    train.to_csv(f'{output_dir}/train_data.csv', index=False)
+    test.to_csv(f'{output_dir}/test_data.csv', index=False)
+    print(f"✅ Gespeichert: train_data.csv ({len(train)} rows), "
+          f"test_data.csv ({len(test)} rows)")
+    
 # Test
 if __name__ == "__main__":
     prices = pd.read_csv('data/price_data.csv')
@@ -197,3 +204,4 @@ if __name__ == "__main__":
     X_train, X_test, y_train, y_test, train, test = time_based_split(panel)
     print(panel[['ts_code', 'z_momentum', 'z_roe', 'z_earnings_yield',
                  'z_mfi', 'composite_score', 'label']].head(10))
+    save_pipeline_outputs(train, test)

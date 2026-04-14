@@ -40,14 +40,41 @@ def create_labels(panel: pd.DataFrame) -> pd.DataFrame:
 
     def label_month(group):
         median = group['forward_return_21d'].median()
+        group = group.copy()
         group['label'] = (group['forward_return_21d'] > median).astype(int)
         return group
 
-    panel = panel.groupby('date', group_keys=False).apply(label_month).reset_index(drop=True)
+    # date als normale Spalte behalten, nicht als Index verwenden
+    panel = panel.copy()
+    panel['label'] = None
+
+    for date, group in panel.groupby('date'):
+        median = group['forward_return_21d'].median()
+        panel.loc[group.index, 'label'] = (group['forward_return_21d'] > median).astype(int)
+
+    panel['label'] = panel['label'].astype(int)
 
     print(f"✅ Labels erstellt:")
     print(f"   Label 1: {panel['label'].sum()} rows")
     print(f"   Label 0: {(panel['label'] == 0).sum()} rows")
+
+    return panel
+
+
+def clean_data(panel: pd.DataFrame) -> pd.DataFrame:
+    # Zeilen ohne Label droppen (letzter Monat — keine Zukunft vorhanden)
+    before = len(panel)
+    panel = panel.dropna(subset=['forward_return_21d'])
+    dropped = before - len(panel)
+
+    # Feature NaNs mit 0 füllen (neutrales Signal)
+    panel['momentum'] = panel['momentum'].fillna(0)
+
+    print(f"✅ Data Cleaning:")
+    print(f"   Rows vorher: {before}")
+    print(f"   Rows gedroppt: {dropped}")
+    print(f"   Rows nachher: {len(panel)}")
+    print(f"   Verbleibende NaNs: {panel[['momentum', 'forward_return_21d', 'label']].isna().sum().sum()}")
 
     return panel
 
@@ -57,4 +84,5 @@ if __name__ == "__main__":
     prices = pd.read_csv('data/price_data.csv')
     panel = build_monthly_panel(prices)
     panel = create_labels(panel)
-    print(panel[['ts_code', 'forward_return_21d', 'label']].head(12))
+    panel = clean_data(panel)
+    print(panel[['ts_code', 'date', 'forward_return_21d', 'label']].head(12))

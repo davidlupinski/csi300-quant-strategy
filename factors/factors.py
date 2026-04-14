@@ -198,6 +198,30 @@ def get_monthly_fundamentals(stocks, start_date='20230101', end_date='20240102')
     print(f"✅ Monthly fundamentals: {len(fundamentals_monthly)} rows")
     return fundamentals_monthly
 
+# --- Block 6c: Load Historical ROE (für pipeline.py) ---
+def get_roe_historical(stocks, period='20221231'):
+    """
+    Lädt ROE aus dem Jahresabschluss Q4 2022.
+    Wird in pipeline.py verwendet damit kein Look-ahead Bias entsteht:
+    Wir trainieren auf 2023 Daten → brauchen ROE von VOR 2023.
+    """
+    all_data = []
+
+    for stock in stocks[:10]:
+        df = pro.fina_indicator(
+            ts_code=stock,
+            period=period,
+            fields='ts_code,ann_date,roe'
+        )
+        if len(df) > 0:
+            latest = df.iloc[0:1]
+            all_data.append(latest)
+
+    roe_historical = pd.concat(all_data, ignore_index=True)
+    roe_historical = roe_historical.dropna(subset=['roe'])
+
+    print(f"✅ Historical ROE loaded: {len(roe_historical)} stocks")
+    return roe_historical
 # --- Block 7: Calculate MFI (Money Flow Index) ---
 def calculate_mfi(price_data, window=14):
     """
@@ -379,6 +403,16 @@ if __name__ == "__main__":
         fundamentals_monthly = get_monthly_fundamentals(stocks)
         fundamentals_monthly.to_csv(FUND_FILE, index=False)
         print(f"✅ Saved to {FUND_FILE}")
+        
+# Step 2c: Load historical ROE (Q4 2022 — kein Look-ahead Bias)
+    ROE_FILE = 'data/roe_historical.csv'
+    if os.path.exists(ROE_FILE):
+        print("📂 Loading historical ROE from local file...")
+    else:
+        print("🌐 Fetching historical ROE from Tushare...")
+        roe_historical = get_roe_historical(stocks)
+        roe_historical.to_csv(ROE_FILE, index=False)
+        print(f"✅ Saved to {ROE_FILE}")
 
     # Step 3: Calculate all factors
     momentum    = calculate_momentum(prices)

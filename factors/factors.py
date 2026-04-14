@@ -173,6 +173,30 @@ def get_roe_data(stocks, period='20231231'):
 
 # Test
 roe_data = get_roe_data(stocks)
+# --- Block 6b: Load Monthly Fundamentals (PE, Turnover) ---
+def get_monthly_fundamentals(stocks, start_date='20230101', end_date='20240102'):
+    """
+    Lädt PE und Turnover für jeden Monat × jede Aktie.
+    Wir nehmen den letzten Handelstag jedes Monats.
+    """
+    dates = pd.date_range(start=start_date, end=end_date, freq='BME')
+    dates = [d.strftime('%Y%m%d') for d in dates]
+
+    all_data = []
+
+    for date in dates:
+        for stock in stocks[:10]:
+            df = pro.daily_basic(
+                ts_code=stock,
+                trade_date=date,
+                fields='ts_code,trade_date,pe_ttm,turnover_rate'
+            )
+            if len(df) > 0:
+                all_data.append(df)
+
+    fundamentals_monthly = pd.concat(all_data, ignore_index=True)
+    print(f"✅ Monthly fundamentals: {len(fundamentals_monthly)} rows")
+    return fundamentals_monthly
 
 # --- Block 7: Calculate MFI (Money Flow Index) ---
 def calculate_mfi(price_data, window=14):
@@ -344,6 +368,17 @@ if __name__ == "__main__":
         os.makedirs('data', exist_ok=True)
         prices = get_price_data(stocks)
         prices.to_csv(DATA_FILE, index=False)
+
+    # Step 2b: Load monthly fundamentals (PE, Turnover)
+    FUND_FILE = 'data/fundamentals_monthly.csv'
+    if os.path.exists(FUND_FILE):
+        print("📂 Loading fundamentals from local file...")
+        fundamentals_monthly = pd.read_csv(FUND_FILE)
+    else:
+        print("🌐 Fetching monthly fundamentals from Tushare...")
+        fundamentals_monthly = get_monthly_fundamentals(stocks)
+        fundamentals_monthly.to_csv(FUND_FILE, index=False)
+        print(f"✅ Saved to {FUND_FILE}")
 
     # Step 3: Calculate all factors
     momentum    = calculate_momentum(prices)

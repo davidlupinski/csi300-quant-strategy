@@ -10,74 +10,47 @@ import os
 
 # --- Block 1: Load Data ---
 def load_data(data_dir='data'):
-    """
-    Loads train and test data from CSV files created by pipeline.py.
-    
-    X = Features (z-scored factors + composite score)
-    y = Label (1 = outperforms CSI300 next month, 0 = underperforms)
-    """
     train = pd.read_csv(f'{data_dir}/train_data.csv')
     test  = pd.read_csv(f'{data_dir}/test_data.csv')
 
     features = ['z_momentum', 'z_mfi', 'z_turnover_rate',
                 'z_roe', 'z_earnings_yield', 'composite_score']
 
-    X_train = train[features]
-    y_train = train['label']
-
-    X_test = test[features]
-    y_test = test['label']
+    X_train  = train[features]
+    y_train  = train['label']
+    X_test   = test[features]
+    y_test   = test['label']
+    meta_test = test[['date', 'ts_code']]  # datum + aktie separat
 
     print(f"✅ Train: {X_train.shape[0]} rows | Test: {X_test.shape[0]} rows")
     print(f"   Features: {list(features)}")
     print(f"   Label distribution (train): \n{y_train.value_counts()}")
 
-    return X_train, X_test, y_train, y_test
+    return X_train, X_test, y_train, y_test, meta_test
+
 # --- Block 2: Train Model ---
 def train_model(X_train, y_train):
-    """
-    Trains a Random Forest Classifier on the training data.
-    
-    n_estimators=100: 100 decision trees, majority vote decides
-    max_depth=3:      shallow trees → less overfitting risk
-    random_state=42:  fixed seed → same result every run
-    """
     model = RandomForestClassifier(
         n_estimators=100,
         max_depth=3,
         random_state=42
     )
-
     model.fit(X_train, y_train)
     print(f"✅ Model trained on {X_train.shape[0]} rows")
-
     return model
 
 # --- Block 3: Evaluate Model ---
 def evaluate_model(model, X_test, y_test):
-    """
-    Evaluates the trained model on unseen test data.
-    
-    We never showed the model X_test during training —
-    this gives us an honest estimate of real-world performance.
-    """
     y_pred = model.predict(X_test)
-
     acc = accuracy_score(y_test, y_pred)
     print(f"\n📊 Test Accuracy: {acc:.2%}")
     print("\n📋 Classification Report:")
     print(classification_report(y_test, y_pred, target_names=['Underperform', 'Outperform']))
-
     return y_pred
 
 # --- Block 4: Feature Importance ---
-def plot_feature_importance(model, feature_names, save_path='report/figures/rf_feature_importance.png'):
-    """
-    Shows which factors the Random Forest used most for predictions.
-    
-    Importance = how much each feature reduced prediction error
-    across all 100 trees, averaged.
-    """
+def plot_feature_importance(model, feature_names,
+                            save_path='report/figures/rf_feature_importance.png'):
     importance = pd.Series(
         model.feature_importances_,
         index=feature_names
@@ -88,37 +61,30 @@ def plot_feature_importance(model, feature_names, save_path='report/figures/rf_f
     importance.plot(kind='barh', ax=ax, color='steelblue')
     ax.set_title('Random Forest — Feature Importance')
     ax.set_xlabel('Importance Score')
-    ax.axvline(x=1/len(feature_names), color='red', 
+    ax.axvline(x=1/len(feature_names), color='red',
                linestyle='--', label='Equal weight baseline')
     ax.legend()
     plt.tight_layout()
-
     os.makedirs(os.path.dirname(save_path), exist_ok=True)
     plt.savefig(save_path)
     print(f"✅ Feature importance chart saved: {save_path}")
     plt.show()
 
 # --- Block 5: Save Predictions ---
-def save_predictions(X_test, y_test, y_pred, 
+def save_predictions(X_test, y_test, y_pred, meta_test,
                      save_path='data/rf_predictions.csv'):
-    """
-    Saves test data + true labels + model predictions to CSV.
-    
-    The backtest will load this file to generate buy/sell signals.
-    y_true  = what actually happened (1 = outperformed)
-    y_pred  = what the model predicted (1 = predicted outperform)
-    """
     results = X_test.copy()
-    results['y_true'] = y_test.values
-    results['y_pred'] = y_pred
-
+    results['date']    = meta_test['date'].values
+    results['ts_code'] = meta_test['ts_code'].values
+    results['y_true']  = y_test.values
+    results['y_pred']  = y_pred
     results.to_csv(save_path, index=False)
     print(f"✅ Predictions saved: {save_path} ({len(results)} rows)")
 
 
 if __name__ == '__main__':
-    X_train, X_test, y_train, y_test = load_data()
-    model = train_model(X_train, y_train)
+    X_train, X_test, y_train, y_test, meta_test = load_data()
+    model  = train_model(X_train, y_train)
     y_pred = evaluate_model(model, X_test, y_test)
     plot_feature_importance(model, X_train.columns.tolist())
-    save_predictions(X_test, y_test, y_pred)  # ← neu
+    save_predictions(X_test, y_test, y_pred, meta_test)

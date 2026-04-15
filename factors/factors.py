@@ -39,14 +39,14 @@ stocks = get_csi300_stocks('20240102')
 print(stocks[:5])
 
 # --- Block 3: Load Daily Price Data ---
-def get_price_data(stocks, start_date='20230101', end_date='20240102'):
+def get_price_data(stocks, start_date='20180101', end_date='20241231'):
     """
     Loads daily price data for a list of stocks.
     Returns a DataFrame with all stocks combined.
     """
     all_data = []
 
-    for stock in stocks[:10]:
+    for stock in stocks:
         df = pro.daily(
             ts_code=stock,
             start_date=start_date,
@@ -124,7 +124,7 @@ def get_fundamental_data(stocks, trade_date='20240103'):
     """
     all_data = []
 
-    for stock in stocks[:10]:  # Test with first 10 stocks
+    for stock in stocks:  # Test with first 10 stocks
         df = pro.daily_basic(
             ts_code=stock,      # One stock at a time
             trade_date=trade_date,
@@ -152,7 +152,7 @@ def get_roe_data(stocks, period='20231231'):
     """
     all_data = []
 
-    for stock in stocks[:10]:  # Test with first 10 stocks
+    for stock in stocks:  # Test with first 10 stocks
         df = pro.fina_indicator(
             ts_code=stock,
             period=period,
@@ -174,7 +174,7 @@ def get_roe_data(stocks, period='20231231'):
 # Test
 roe_data = get_roe_data(stocks)
 # --- Block 6b: Load Monthly Fundamentals (PE, Turnover) ---
-def get_monthly_fundamentals(stocks, start_date='20230101', end_date='20240102'):
+def get_monthly_fundamentals(stocks, start_date='20180101', end_date='20241231'):
     """
     Lädt PE und Turnover für jeden Monat × jede Aktie.
     Wir nehmen den letzten Handelstag jedes Monats.
@@ -185,7 +185,7 @@ def get_monthly_fundamentals(stocks, start_date='20230101', end_date='20240102')
     all_data = []
 
     for date in dates:
-        for stock in stocks[:10]:
+        for stock in stocks:
             df = pro.daily_basic(
                 ts_code=stock,
                 trade_date=date,
@@ -199,7 +199,7 @@ def get_monthly_fundamentals(stocks, start_date='20230101', end_date='20240102')
     return fundamentals_monthly
 
 # --- Block 6c: Load Historical ROE (für pipeline.py) ---
-def get_roe_historical(stocks, period='20221231'):
+def get_roe_historical(stocks, period='20171231'):
     """
     Lädt ROE aus dem Jahresabschluss Q4 2022.
     Wird in pipeline.py verwendet damit kein Look-ahead Bias entsteht:
@@ -207,7 +207,7 @@ def get_roe_historical(stocks, period='20221231'):
     """
     all_data = []
 
-    for stock in stocks[:10]:
+    for stock in stocks:
         df = pro.fina_indicator(
             ts_code=stock,
             period=period,
@@ -403,11 +403,12 @@ if __name__ == "__main__":
         fundamentals_monthly = get_monthly_fundamentals(stocks)
         fundamentals_monthly.to_csv(FUND_FILE, index=False)
         print(f"✅ Saved to {FUND_FILE}")
-        
-# Step 2c: Load historical ROE (Q4 2022 — kein Look-ahead Bias)
+
+    # Step 2c: Load historical ROE (Q4 2022 — kein Look-ahead Bias)
     ROE_FILE = 'data/roe_historical.csv'
     if os.path.exists(ROE_FILE):
         print("📂 Loading historical ROE from local file...")
+        roe_historical = pd.read_csv(ROE_FILE)   # ← Fix: Variable setzen
     else:
         print("🌐 Fetching historical ROE from Tushare...")
         roe_historical = get_roe_historical(stocks)

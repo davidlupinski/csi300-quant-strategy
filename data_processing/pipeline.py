@@ -159,7 +159,7 @@ def add_zscores(panel: pd.DataFrame) -> pd.DataFrame:
     return panel
 
 
-def time_based_split(panel: pd.DataFrame, split_date: str = '2023-07-01'):
+def time_based_split(panel: pd.DataFrame, split_date: str = '2023-01-01'):
     """
     Zeitbasierter Train/Test Split — kein Look-ahead Bias.
     Training: alles vor split_date

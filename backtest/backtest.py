@@ -150,7 +150,7 @@ def benchmark_returns(monthly_returns, initial_capital=100000):
     all_stocks = monthly_returns['ts_code'].unique().tolist()
     all_dates  = sorted(monthly_returns['date'].unique())
     # Nach all_dates definieren — NEU:
-    strategy_start = pd.Timestamp('2023-07-31')  # erster Monat der ML-Strategien
+    strategy_start = pd.Timestamp('2023-01-31')  # erster Monat der ML-Strategien
     all_dates = [d for d in all_dates if d >= strategy_start]
     # Einmalige Kaufkosten
     portfolio_value = initial_capital * (1 - COST_BUY)

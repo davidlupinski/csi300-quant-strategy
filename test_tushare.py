@@ -1,6 +1,6 @@
 import tushare as ts
 
-ts.set_token('5344f94c35f9803bd597342c178f61adecbca9d9a4cf958443bfb8a3')
+ts.set_token('DEIN_TOKEN_HIER')  # Token aus .env laden
 pro = ts.pro_api()
 
 # Test 1: CSI 300 Constituents

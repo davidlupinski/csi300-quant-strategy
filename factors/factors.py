@@ -40,43 +40,31 @@ print(stocks[:5])
 
 # --- Block 3: Load Daily Price Data ---
 def get_price_data(stocks, start_date='20180101', end_date='20241231'):
-    """
-    Loads daily price data for a list of stocks.
-    Returns a DataFrame with all stocks combined.
-    """
     all_data = []
-
-    for stock in stocks:
-        df = pro.daily(
-            ts_code=stock,
-            start_date=start_date,
-            end_date=end_date
-        )
-        all_data.append(df)
-
+    
+    for i, stock in enumerate(stocks):
+        success = False
+        retries = 3
+        while not success and retries > 0:
+            try:
+                df = pro.daily(
+                    ts_code=stock,
+                    start_date=start_date,
+                    end_date=end_date
+                )
+                all_data.append(df)
+                success = True
+                if (i + 1) % 10 == 0:
+                    print(f"  Progress: {i+1}/{len(stocks)} stocks loaded")
+            except Exception as e:
+                retries -= 1
+                print(f"  ⚠️ Retry {stock} ({retries} left): {e}")
+                import time
+                time.sleep(5)  # 5 Sekunden warten vor Retry
+    
     price_data = pd.concat(all_data, ignore_index=True)
     print(f"✅ Price data loaded: {len(price_data)} rows")
     return price_data
-
-# --- Save / Load Logic ---
-import os
-
-DATA_FILE = 'data/price_data.csv'  # Path to saved data
-
-if os.path.exists(DATA_FILE):
-    # If file exists → load from disk, no API call needed
-    print("📂 Loading price data from local file...")
-    prices = pd.read_csv(DATA_FILE)
-    print(f"✅ Loaded {len(prices)} rows from disk")
-else:
-    # If file doesn't exist → fetch from Tushare and save
-    print("🌐 Fetching price data from Tushare...")
-    os.makedirs('data', exist_ok=True)  # Create data folder if needed
-    prices = get_price_data(stocks)
-    prices.to_csv(DATA_FILE, index=False)  # Save to disk
-    print(f"✅ Saved to {DATA_FILE}")
-
-print(prices.head())
 
 # --- Block 4: Calculate Momentum Factor ---
 def calculate_momentum(price_data, window=20):
@@ -111,8 +99,8 @@ def calculate_momentum(price_data, window=20):
     return momentum_df
 
 # Test
-momentum = calculate_momentum(prices)
-print(momentum.head(10))
+#momentum = calculate_momentum(prices)
+#print(momentum.head(10))
 
 # --- Block 5: Load Fundamental Data (PE, PB, Turnover) ---
 def get_fundamental_data(stocks, trade_date='20240103'):
@@ -140,7 +128,7 @@ def get_fundamental_data(stocks, trade_date='20240103'):
     return fundamentals
 
 # Test
-fundamentals = get_fundamental_data(stocks)
+#fundamentals = get_fundamental_data(stocks)
 
 # --- Block 6: Load ROE (Profitability Factor) ---
 def get_roe_data(stocks, period='20231231'):
@@ -172,29 +160,62 @@ def get_roe_data(stocks, period='20231231'):
     return roe_df
 
 # Test
-roe_data = get_roe_data(stocks)
+#roe_data = get_roe_data(stocks)
 # --- Block 6b: Load Monthly Fundamentals (PE, Turnover) ---
 def get_monthly_fundamentals(stocks, start_date='20180101', end_date='20241231'):
-    """
-    Lädt PE und Turnover für jeden Monat × jede Aktie.
-    Wir nehmen den letzten Handelstag jedes Monats.
-    """
+    FUND_FILE = 'data/fundamentals_monthly.csv'
+    
+    # Bereits geladene Daten prüfen
+    if os.path.exists(FUND_FILE):
+        existing = pd.read_csv(FUND_FILE)
+        done_dates = existing['trade_date'].unique().tolist()
+        print(f"📂 Bereits geladen: {len(done_dates)} Datumswerte — weiter ab da")
+    else:
+        existing = pd.DataFrame()
+        done_dates = []
+        os.makedirs('data', exist_ok=True)
+
     dates = pd.date_range(start=start_date, end=end_date, freq='BME')
     dates = [d.strftime('%Y%m%d') for d in dates]
 
     all_data = []
+    import time
 
-    for date in dates:
+    for di, date in enumerate(dates):
+        if int(date) in done_dates or date in done_dates:
+            continue  # bereits geladen → überspringen
+
         for stock in stocks:
-            df = pro.daily_basic(
-                ts_code=stock,
-                trade_date=date,
-                fields='ts_code,trade_date,pe_ttm,turnover_rate'
-            )
-            if len(df) > 0:
-                all_data.append(df)
+            success = False
+            retries = 3
+            while not success and retries > 0:
+                try:
+                    df = pro.daily_basic(
+                        ts_code=stock,
+                        trade_date=date,
+                        fields='ts_code,trade_date,pe_ttm,turnover_rate'
+                    )
+                    if len(df) > 0:
+                        all_data.append(df)
+                    success = True
+                except Exception as e:
+                    retries -= 1
+                    print(f"  ⚠️ Retry {stock} {date} ({retries} left): {e}")
+                    time.sleep(5)
 
-    fundamentals_monthly = pd.concat(all_data, ignore_index=True)
+        # Nach jedem Monat speichern
+        if all_data:
+            temp = pd.concat([existing] + all_data, ignore_index=True)
+            temp.to_csv(FUND_FILE, index=False)
+
+        if (di + 1) % 10 == 0:
+            print(f"  Progress: {di+1}/{len(dates)} months loaded")
+
+    if all_data:
+        fundamentals_monthly = pd.concat([existing] + all_data, ignore_index=True)
+    else:
+        fundamentals_monthly = existing
+
     print(f"✅ Monthly fundamentals: {len(fundamentals_monthly)} rows")
     return fundamentals_monthly
 
@@ -283,7 +304,7 @@ def calculate_mfi(price_data, window=14):
     return mfi_df
 
 # Test
-mfi_data = calculate_mfi(prices)
+#mfi_data = calculate_mfi(prices)
 
 # --- Block 8: Combine All Factors + Composite Score ---
 def calculate_composite_score(fundamentals, roe_data, 
@@ -353,9 +374,9 @@ def calculate_composite_score(fundamentals, roe_data,
     return df
 
 # Test
-factor_df = calculate_composite_score(
-    fundamentals, roe_data, momentum, mfi_data
-)
+#factor_df = calculate_composite_score(
+#    fundamentals, roe_data, momentum, mfi_data
+#)
 
 # --- Block 9: Save Final Factor Data ---
 def save_factor_data(factor_df, filename='data/factors_latest.csv'):
@@ -396,8 +417,16 @@ if __name__ == "__main__":
     # Step 2b: Load monthly fundamentals (PE, Turnover)
     FUND_FILE = 'data/fundamentals_monthly.csv'
     if os.path.exists(FUND_FILE):
-        print("📂 Loading fundamentals from local file...")
-        fundamentals_monthly = pd.read_csv(FUND_FILE)
+        existing = pd.read_csv(FUND_FILE)
+        print(f"📂 Fundamentals teilweise geladen: {len(existing)} Zeilen")
+        print(f"   Letztes Datum: {existing['trade_date'].max()}")
+        # Prüfen ob vollständig — sollte ~25000 Zeilen haben
+        if len(existing) < 20000:
+            print("⚠️  Nicht vollständig — lade weiter...")
+            fundamentals_monthly = get_monthly_fundamentals(stocks)
+        else:
+            fundamentals_monthly = existing
+            print("✅ Vollständig geladen")
     else:
         print("🌐 Fetching monthly fundamentals from Tushare...")
         fundamentals_monthly = get_monthly_fundamentals(stocks)

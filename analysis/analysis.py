@@ -217,7 +217,7 @@ def plot_bull_bear(results, save_path='report/figures/bull_bear_analysis.png'):
 
     # Formatierung
     ax.set_title('Robustness Test 1 — Bull vs. Bear Market Performance\n'
-                 'Annualized Return by Market Phase (H2 2023 Test Period)',
+                 'Annualized Return by Market Phase (2023-2024 Test Period)',
                  fontsize=13, fontweight='bold')
     ax.set_ylabel('Annualized Return')
     ax.set_xticks(x + width / 2)
@@ -229,8 +229,8 @@ def plot_bull_bear(results, save_path='report/figures/bull_bear_analysis.png'):
 
     # Hinweis-Text unten im Chart
     ax.text(0.5, -0.13,
-            '⚠️  Test data: 10 stocks, H2 2023 (pure bear market). '
-            'Bull phase results require full dataset (2018–2024).',
+            '⚠️  Test period: 2023-2024, 300 stocks. '
+            'Training: 2018-2022. Full CSI 300 dataset.',
             transform=ax.transAxes,
             ha='center', fontsize=8, color='gray', style='italic')
 
@@ -363,8 +363,8 @@ def plot_cost_sensitivity(multipliers, rf_returns, xgb_returns, bnh_return,
 
     # Hinweis unten
     ax.text(0.5, -0.13,
-            '⚠️  Based on test data: 10 stocks, H2 2023. '
-            'Results will be more stable with full dataset (2018–2024).',
+            '⚠️  Based on full dataset: 300 stocks, 2018-2024. '
+            'Training: 2018-2022 | Test: 2023-2024.',
             transform=ax.transAxes,
             ha='center', fontsize=8, color='gray', style='italic')
 
